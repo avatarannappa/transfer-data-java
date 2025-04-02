@@ -30,6 +30,9 @@ public class MainFrame extends JFrame {
     private final TrayManager trayManager;
     private final ScheduledExecutorService uiUpdateScheduler;
     
+    // 标记是否正在加载配置
+    private boolean isLoadingConfig = false;
+    
     // UI组件
     private JTextField apiUrlField;
     private JTextField equipmentCodeField;
@@ -212,8 +215,81 @@ public class MainFrame extends JFrame {
         JPanel apiTypePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         
         apiTypeGroup = new ButtonGroup();
-        equipmentApiRadio = new JRadioButton("设备运行时数据");
-        serialApiRadio = new JRadioButton("终检机结果");
+        equipmentApiRadio = new JRadioButton("中间数据");
+        serialApiRadio = new JRadioButton("结果数据");
+        
+        // 为单选按钮添加确认对话框
+        equipmentApiRadio.addItemListener(e -> {
+            // 只有在用户交互时（非加载配置时）才显示确认对话框
+            if (equipmentApiRadio.isSelected() && !isLoadingConfig) {
+                // 记住之前的选择状态
+                boolean wasSerialSelected = serialApiRadio.isSelected();
+                
+                // 显示确认对话框
+                int result = JOptionPane.showConfirmDialog(
+                    MainFrame.this,
+                    "确定要选择「中间数据」API类型吗？",
+                    "确认选择",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+                );
+                
+                // 如果用户取消，则恢复之前的选择
+                if (result != JOptionPane.YES_OPTION) {
+                    // 将ButtonGroup设置为null，以便可以取消所有选择
+                    ButtonGroup bg = new ButtonGroup();
+                    bg.add(equipmentApiRadio);
+                    bg.add(serialApiRadio);
+                    
+                    // 恢复之前的状态
+                    if (wasSerialSelected) {
+                        serialApiRadio.setSelected(true);
+                    } else {
+                        equipmentApiRadio.setSelected(false);
+                    }
+                    
+                    // 恢复原来的ButtonGroup
+                    apiTypeGroup.add(equipmentApiRadio);
+                    apiTypeGroup.add(serialApiRadio);
+                }
+            }
+        });
+        
+        serialApiRadio.addItemListener(e -> {
+            // 只有在用户交互时（非加载配置时）才显示确认对话框
+            if (serialApiRadio.isSelected() && !isLoadingConfig) {
+                // 记住之前的选择状态
+                boolean wasEquipmentSelected = equipmentApiRadio.isSelected();
+                
+                // 显示确认对话框
+                int result = JOptionPane.showConfirmDialog(
+                    MainFrame.this,
+                    "确定要选择「结果数据」API类型吗？",
+                    "确认选择",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+                );
+                
+                // 如果用户取消，则恢复之前的选择
+                if (result != JOptionPane.YES_OPTION) {
+                    // 将ButtonGroup设置为null，以便可以取消所有选择
+                    ButtonGroup bg = new ButtonGroup();
+                    bg.add(equipmentApiRadio);
+                    bg.add(serialApiRadio);
+                    
+                    // 恢复之前的状态
+                    if (wasEquipmentSelected) {
+                        equipmentApiRadio.setSelected(true);
+                    } else {
+                        serialApiRadio.setSelected(false);
+                    }
+                    
+                    // 恢复原来的ButtonGroup
+                    apiTypeGroup.add(equipmentApiRadio);
+                    apiTypeGroup.add(serialApiRadio);
+                }
+            }
+        });
         
         apiTypeGroup.add(equipmentApiRadio);
         apiTypeGroup.add(serialApiRadio);
@@ -264,16 +340,85 @@ public class MainFrame extends JFrame {
         gbc.gridy = 8;
         gbc.gridwidth = 2;
         continueFromLastCheckBox = new JCheckBox("从上次位置继续");
+        
+        // 为复选框添加确认对话框
+        continueFromLastCheckBox.addItemListener(e -> {
+            // 只有在用户交互时（非加载配置时）才显示确认对话框
+            if (!isLoadingConfig) {
+                boolean isSelected = continueFromLastCheckBox.isSelected();
+                
+                // 显示确认对话框
+                int result = JOptionPane.showConfirmDialog(
+                    MainFrame.this,
+                    "确定要" + (isSelected ? "启用" : "禁用") + "「从上次位置继续」选项吗？",
+                    "确认选择",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+                );
+                
+                // 如果用户取消，则恢复之前的状态
+                if (result != JOptionPane.YES_OPTION) {
+                    continueFromLastCheckBox.setSelected(!isSelected);
+                }
+            }
+        });
+        
         configPanel.add(continueFromLastCheckBox, gbc);
         
         gbc.gridx = 0;
         gbc.gridy = 9;
         minimizeToTrayCheckBox = new JCheckBox("最小化到系统托盘");
+        
+        // 为复选框添加确认对话框
+        minimizeToTrayCheckBox.addItemListener(e -> {
+            // 只有在用户交互时（非加载配置时）才显示确认对话框
+            if (!isLoadingConfig) {
+                boolean isSelected = minimizeToTrayCheckBox.isSelected();
+                
+                // 显示确认对话框
+                int result = JOptionPane.showConfirmDialog(
+                    MainFrame.this,
+                    "确定要" + (isSelected ? "启用" : "禁用") + "「最小化到系统托盘」选项吗？",
+                    "确认选择",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+                );
+                
+                // 如果用户取消，则恢复之前的状态
+                if (result != JOptionPane.YES_OPTION) {
+                    minimizeToTrayCheckBox.setSelected(!isSelected);
+                }
+            }
+        });
+        
         configPanel.add(minimizeToTrayCheckBox, gbc);
         
         gbc.gridx = 0;
         gbc.gridy = 10;
         monitorAllFilesCheckBox = new JCheckBox("监控全部文件");
+        
+        // 为复选框添加确认对话框
+        monitorAllFilesCheckBox.addItemListener(e -> {
+            // 只有在用户交互时（非加载配置时）才显示确认对话框
+            if (!isLoadingConfig) {
+                boolean isSelected = monitorAllFilesCheckBox.isSelected();
+                
+                // 显示确认对话框
+                int result = JOptionPane.showConfirmDialog(
+                    MainFrame.this,
+                    "确定要" + (isSelected ? "启用" : "禁用") + "「监控全部文件」选项吗？",
+                    "确认选择",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE
+                );
+                
+                // 如果用户取消，则恢复之前的状态
+                if (result != JOptionPane.YES_OPTION) {
+                    monitorAllFilesCheckBox.setSelected(!isSelected);
+                }
+            }
+        });
+        
         configPanel.add(monitorAllFilesCheckBox, gbc);
         
         return configPanel;
@@ -438,7 +583,7 @@ public class MainFrame extends JFrame {
         saveConfigButton = new JButton("保存配置");
         saveConfigButton.addActionListener(e -> saveConfig());
         controlPanel.add(saveConfigButton);
-        
+
         startButton = new JButton("启动");
         startButton.addActionListener(e -> startService());
         controlPanel.add(startButton);
@@ -604,7 +749,7 @@ public class MainFrame extends JFrame {
      */
     private void startService() {
         // 先保存配置
-        saveConfig();
+        // saveConfig();
         
         // 启动服务
         dataTransferService.start();
@@ -647,6 +792,8 @@ public class MainFrame extends JFrame {
      * 加载配置到UI
      */
     private void loadConfig() {
+        isLoadingConfig = true; // 标记开始加载配置
+        
         Config config = dataTransferService.getConfig();
         
         apiUrlField.setText(config.getApiBaseUrl());
@@ -666,6 +813,8 @@ public class MainFrame extends JFrame {
         } else if (config.isSerialApiType()) {
             serialApiRadio.setSelected(true);
         }
+        
+        isLoadingConfig = false; // 标记配置加载完成
     }
     
     /**

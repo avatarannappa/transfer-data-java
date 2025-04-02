@@ -57,24 +57,12 @@ public class DataMappingService {
     }
     
     /**
-     * 从CSV行生成文件Base64数据
+     * TODO 有截图再做
+     * 
      * @param record 检测记录
      * @return Base64编码的字符串
      */
     public String generateFileBase64(DetectionRecord record) {
-        // 生成简单的CSV格式字符串
-        StringBuilder sb = new StringBuilder();
-        sb.append("二维码,日期,结果\n");
-        sb.append(record.getBarcode()).append(",")
-          .append(record.getDate()).append(",")
-          .append(record.getResult()).append("\n");
-        
-        // 添加所有测量数据
-        for (Map.Entry<String, String> entry : record.getMeasurements().entrySet()) {
-            sb.append(entry.getKey()).append(",").append(entry.getValue()).append("\n");
-        }
-        
-        // 转换为Base64
-        return Base64.getEncoder().encodeToString(sb.toString().getBytes());
+        return "";
     }
 } 

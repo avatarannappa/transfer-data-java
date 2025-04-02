@@ -28,5 +28,5 @@
     </root>
     
     <!-- 应用日志级别 -->
-    <logger name="com.dataTransfer" level="DEBUG" />
+    <logger name="com.dataTransfer" level="INFO" />
 </configuration> 

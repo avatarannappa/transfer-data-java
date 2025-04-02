@@ -1,7 +1,6 @@
 package com.dataTransfer.model;
 
 import java.io.Serializable;
-import com.fasterxml.jackson.annotation.JsonAlias;
 
 /**
  * 应用程序配置类
@@ -14,15 +13,14 @@ public class Config implements Serializable {
     public static final String API_TYPE_SERIAL = "serial";        // 终检机结果API
     
     private String apiBaseUrl = "http://aaabbb.com"; // API服务器地址
-    private String equipmentCode; // 设备代码
-    private String lineCode; // 生产线代码
+    private String equipmentCode = "传输中间数据时需要人工配置"; // 设备代码
+    private String lineCode = "传输结果数据时需要人工配置"; // 生产线代码
     private String csvFilePath; // CSV文件路径
     private int monitorInterval = 3; // 监控间隔(秒)
     private int maxRetries = 3; // 最大重试次数
-    private int retryDelay = 5; // 重试延迟(秒)
+    private int retryDelay = 2; // 重试延迟(秒)
     private boolean continueFromLastPosition = true; // 是否从上次位置继续
-    private boolean minimizeToTray = false; // 是否最小化到系统托盘
-    @JsonAlias({"equipmentApiType"})
+    private boolean minimizeToTray = true; // 是否最小化到系统托盘
     private String apiType = API_TYPE_EQUIPMENT; // API类型，默认为设备运行时数据API
     private boolean monitorAllFiles = true; // 是否监控文件夹中的所有文件
     

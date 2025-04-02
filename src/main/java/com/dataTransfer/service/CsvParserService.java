@@ -39,43 +39,6 @@ public class CsvParserService {
     }
     
     /**
-     * 解析CSV文件，返回所有检测记录
-     * @param file CSV文件
-     * @return 检测记录列表
-     */
-    public List<DetectionRecord> parseFile(File file) {
-        List<DetectionRecord> records = new ArrayList<>();
-        
-        try (CSVReader reader = new CSVReader(new InputStreamReader(new FileInputStream(file), ISO_8859_1))) {
-            String[] headerLine = reader.readNext(); // 读取表头
-            if (headerLine == null) {
-                logger.error("CSV文件为空或格式错误");
-                return records;
-            }
-            
-            String[] nextLine;
-            // 跳过表头后的空行
-            do {
-                nextLine = reader.readNext();
-            } while (nextLine != null && nextLine.length > 0 && isEmpty(nextLine));
-            
-            // 处理实际的数据行
-            while ((nextLine = reader.readNext()) != null) {
-                if (nextLine.length > 0 && !isEmpty(nextLine)) {
-                    DetectionRecord record = parseDataLine(headerLine, nextLine);
-                    if (record != null) {
-                        records.add(record);
-                    }
-                }
-            }
-        } catch (IOException | CsvValidationException e) {
-            logger.error("解析CSV文件失败: " + e.getMessage(), e);
-        }
-        
-        return records;
-    }
-    
-    /**
      * 解析CSV文件，从指定行开始，最多返回指定数量的记录
      * @param file CSV文件
      * @param startLine 开始行号（从0开始）
@@ -120,42 +83,6 @@ public class CsvParserService {
     }
     
     /**
-     * 解析CSV文件的最后一条记录
-     * @param file CSV文件
-     * @return 最后一条检测记录，如果没有找到则返回null
-     */
-    public DetectionRecord parseLastRecord(File file) {
-        DetectionRecord lastRecord = null;
-        
-        try (CSVReader reader = new CSVReader(new InputStreamReader(new FileInputStream(file), ISO_8859_1))) {
-            String[] headerLine = reader.readNext(); // 读取表头
-            if (headerLine == null) {
-                logger.error("CSV文件为空或格式错误");
-                return null;
-            }
-            
-            String[] nextLine;
-            String[] previousLine = null;
-            
-            // 读取直到文件末尾
-            while ((nextLine = reader.readNext()) != null) {
-                if (nextLine.length > 0 && !isEmpty(nextLine)) {
-                    previousLine = nextLine;
-                }
-            }
-            
-            // 如果找到了最后一条非空行，解析它
-            if (previousLine != null) {
-                lastRecord = parseDataLine(headerLine, previousLine);
-            }
-        } catch (IOException | CsvValidationException e) {
-            logger.error("解析CSV文件失败: " + e.getMessage(), e);
-        }
-        
-        return lastRecord;
-    }
-    
-    /**
      * 获取CSV文件的总行数
      * @param file CSV文件
      * @return 总行数
@@ -172,6 +99,41 @@ public class CsvParserService {
         }
         
         return lineCount;
+    }
+    
+    /**
+     * 获取CSV文件中最后一个非空数据行的行号
+     * @param file CSV文件
+     * @return 最后一个非空数据行的行号，如果没有非空行则返回0
+     */
+    public long getLastNonEmptyLineNumber(File file) {
+        long lastNonEmptyLine = 0;
+        long currentLine = 0;
+        
+        try (CSVReader reader = new CSVReader(new InputStreamReader(new FileInputStream(file), ISO_8859_1))) {
+            String[] headerLine = reader.readNext(); // 读取表头
+            currentLine = 1; // 已经读取了表头，从1开始
+            
+            if (headerLine == null) {
+                logger.error("CSV文件为空或格式错误");
+                return lastNonEmptyLine;
+            }
+            
+            String[] nextLine;
+            
+            // 读取直到文件末尾
+            while ((nextLine = reader.readNext()) != null) {
+                currentLine++;
+                
+                if (nextLine.length > 0 && !isEmpty(nextLine)) {
+                    lastNonEmptyLine = currentLine;
+                }
+            }
+        } catch (IOException | CsvValidationException e) {
+            logger.error("解析CSV文件失败: " + e.getMessage(), e);
+        }
+        
+        return lastNonEmptyLine;
     }
     
     /**

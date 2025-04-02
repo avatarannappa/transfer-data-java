@@ -6,7 +6,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -15,7 +17,7 @@ import java.util.List;
 /**
  * 数据传输服务类，负责协调各个组件完成数据传输
  */
-public class DataTransferService implements FileMonitorService.FileChangeListener {
+public class DataTransferService {
     private static final Logger logger = LoggerFactory.getLogger(DataTransferService.class);
     
     private final CsvParserService csvParserService;
@@ -46,13 +48,11 @@ public class DataTransferService implements FileMonitorService.FileChangeListene
                 config.getMaxRetries(),
                 config.getRetryDelay()
         );
-        
-        // 创建文件监控服务
-        this.fileMonitorService = new FileMonitorService(
-                config.getCsvFilePath(),
-                config.getMonitorInterval(),
-                this
-        );
+
+                
+        // 创建文件管理
+        this.fileMonitorService = new FileMonitorService(config.getCsvFilePath());
+
     }
     
     /**
@@ -63,17 +63,8 @@ public class DataTransferService implements FileMonitorService.FileChangeListene
             return;
         }
         
-        // 启动文件监控
-        try {
-            if (config.getCsvFilePath() != null && !config.getCsvFilePath().isEmpty()) {
-                fileMonitorService.start();
-            }
-        } catch (Exception e) {
-            logger.error("启动文件监控失败: " + e.getMessage(), e);
-        }
-        
         // 创建定时任务，定期保存状态
-        scheduler = Executors.newScheduledThreadPool(1);
+        scheduler = Executors.newScheduledThreadPool(2);
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 persistenceService.saveStatus(status);
@@ -108,9 +99,15 @@ public class DataTransferService implements FileMonitorService.FileChangeListene
                         // 如果文件哈希值发生变化，表示文件有更新
                         if (fileStatus.getFileHash() == null || !fileStatus.getFileHash().equals(fileHash)) {
                             logger.info("检测到文件变化: {}", absolutePath);
+                            // 处理文件中的新记录
+                            processLatestRecord(file);
+                            
                             // 设置新的哈希值
                             fileStatus.setFileHash(fileHash);
-                            fileStatus.setLastModifiedTime(LocalDateTime.now());
+                            // 设置文件修改时间
+                            Instant instant = Instant.ofEpochMilli(file.lastModified());
+                            LocalDateTime fileModifyTime = instant.atZone(ZoneId.systemDefault()).toLocalDateTime();
+                            fileStatus.setLastModifiedTime(fileModifyTime);
                             
                             // 更新状态
                             status.updateFileStatus(absolutePath, fileStatus);
@@ -139,21 +136,6 @@ public class DataTransferService implements FileMonitorService.FileChangeListene
         
         status.setRunning(true);
         
-        // 如果配置为从上次位置继续，则尝试处理已有文件
-        if (config.isContinueFromLastPosition()) {
-            if (config.isMonitorAllFiles() && status.getLastModifiedFileName() != null) {
-                File file = new File(status.getLastModifiedFileName());
-                if (file.exists()) {
-                    processExistingFile(file);
-                }
-            } else if (status.getFileName() != null) {
-                File file = new File(status.getFileName());
-                if (file.exists()) {
-                    processExistingFile(file);
-                }
-            }
-        }
-        
         persistenceService.saveStatus(status);
         logger.info("数据传输服务已启动");
     }
@@ -172,12 +154,6 @@ public class DataTransferService implements FileMonitorService.FileChangeListene
      */
     public void shutdown() {
         stop();
-        
-        try {
-            fileMonitorService.stop();
-        } catch (Exception e) {
-            logger.error("停止文件监控失败: " + e.getMessage(), e);
-        }
         
         if (scheduler != null) {
             scheduler.shutdown();
@@ -202,17 +178,6 @@ public class DataTransferService implements FileMonitorService.FileChangeListene
     public void updateConfig(Config newConfig) {
         this.config = newConfig;
         persistenceService.saveConfig(newConfig);
-        
-        // 更新文件监控
-        try {
-            fileMonitorService.updateConfig(
-                    newConfig.getCsvFilePath(),
-                    newConfig.getMonitorInterval()
-            );
-        } catch (Exception e) {
-            logger.error("更新文件监控配置失败: " + e.getMessage(), e);
-        }
-        
         logger.info("配置已更新");
     }
     
@@ -239,216 +204,6 @@ public class DataTransferService implements FileMonitorService.FileChangeListene
      */
     public Config getConfig() {
         return config;
-    }
-    
-    /**
-     * 处理文件创建事件
-     * @param file 新创建的文件
-     */
-    @Override
-    public void onFileCreated(File file) {
-        if (!status.isRunning()) {
-            return;
-        }
-        
-        logger.info("处理新创建的文件: {}", file.getAbsolutePath());
-        if (config.isMonitorAllFiles()) {
-            processNewFileMulti(file);
-        } else {
-            processNewFile(file);
-        }
-    }
-    
-    /**
-     * 处理文件变化事件
-     * @param file 变化的文件
-     */
-    @Override
-    public void onFileChanged(File file) {
-        if (!status.isRunning()) {
-            return;
-        }
-        
-        logger.info("处理变化的文件: {}", file.getAbsolutePath());
-        
-        if (config.isMonitorAllFiles()) {
-            processExistingFileMulti(file);
-        } else {
-            // 检查文件是否是当前正在处理的文件
-            if (status.getFileName() != null && status.getFileName().equals(file.getAbsolutePath())) {
-                processExistingFile(file);
-            } else {
-                processNewFile(file);
-            }
-        }
-    }
-    
-    /**
-     * 处理文件删除事件
-     * @param file 已删除的文件
-     */
-    @Override
-    public void onFileDeleted(File file) {
-        if (config.isMonitorAllFiles()) {
-            // 从文件状态映射中移除
-            String absolutePath = file.getAbsolutePath();
-            if (status.getFileStatusMap().containsKey(absolutePath)) {
-                status.getFileStatusMap().remove(absolutePath);
-                logger.info("从状态映射中移除已删除的文件: {}", absolutePath);
-            }
-            
-            // 如果是当前最近修改的文件，需要重新选择一个最新的文件
-            if (status.getLastModifiedFileName() != null && 
-                    status.getLastModifiedFileName().equals(absolutePath)) {
-                File latestFile = fileMonitorService.getLatestModifiedFile();
-                if (latestFile != null) {
-                    status.setLastModifiedFileName(latestFile.getAbsolutePath());
-                    logger.info("更新最近修改的文件为: {}", latestFile.getAbsolutePath());
-                } else {
-                    status.setLastModifiedFileName(null);
-                }
-            }
-        } else {
-            if (status.getFileName() != null && status.getFileName().equals(file.getAbsolutePath())) {
-                logger.warn("当前处理的文件已被删除: {}", file.getAbsolutePath());
-                status.setFileName(null);
-                status.setFileHash(null);
-            }
-        }
-        
-        persistenceService.saveStatus(status);
-    }
-    
-    /**
-     * 处理最新修改的文件
-     * @param file 最新修改的文件
-     */
-    @Override
-    public void onFileLatestModified(File file) {
-        if (!status.isRunning() || !config.isMonitorAllFiles()) {
-            return;
-        }
-        
-        logger.info("处理最新修改的文件: {}", file.getAbsolutePath());
-        processLatestModifiedFile(file);
-    }
-    
-    /**
-     * 处理最新修改的文件
-     * @param file 最新修改的文件
-     */
-    private void processLatestModifiedFile(File file) {
-        String absolutePath = file.getAbsolutePath();
-        
-        // 更新状态中最近修改的文件
-        status.updateLastModifiedFile(absolutePath);
-        
-        // 检查文件是否已在状态映射中
-        if (status.getFileStatusMap().containsKey(absolutePath)) {
-            processExistingFileMulti(file);
-        } else {
-            processNewFileMulti(file);
-        }
-    }
-    
-    /**
-     * 处理新文件（多文件模式）
-     * @param file 新文件
-     */
-    private void processNewFileMulti(File file) {
-        String absolutePath = file.getAbsolutePath();
-        
-        // 创建新的文件状态
-        FileStatus fileStatus = new FileStatus(absolutePath);
-        fileStatus.setLastModifiedTime(LocalDateTime.now());
-        
-        // 计算文件哈希值
-        String fileHash = persistenceService.calculateFileHash(file);
-        fileStatus.setFileHash(fileHash);
-        
-        // 提取产品型号
-        String productModel = fileMonitorService.extractProductModel(file);
-        fileStatus.setProductModel(productModel);
-        
-        // 更新状态
-        status.updateFileStatus(absolutePath, fileStatus);
-        status.updateLastModifiedFile(absolutePath);
-        
-        persistenceService.saveStatus(status);
-        
-        // 发送最后一条记录
-        processLatestRecord(file);
-    }
-    
-    /**
-     * 处理已存在的文件（多文件模式）
-     * @param file 已存在的文件
-     */
-    private void processExistingFileMulti(File file) {
-        String absolutePath = file.getAbsolutePath();
-        
-        // 检查文件是否在状态映射中
-        if (!status.getFileStatusMap().containsKey(absolutePath)) {
-            processNewFileMulti(file);
-            return;
-        }
-        
-        FileStatus fileStatus = status.getFileStatus(absolutePath);
-        
-        // 检查文件是否变化
-        String fileHash = persistenceService.calculateFileHash(file);
-        
-        // 如果文件哈希不一致，说明文件已经变化，需要重新处理
-        if (!fileHash.equals(fileStatus.getFileHash())) {
-            logger.info("文件已变化，检查是否有新记录: {}", absolutePath);
-            fileStatus.setFileHash(fileHash);
-            fileStatus.setLastModifiedTime(LocalDateTime.now());
-            
-            // 更新状态
-            status.updateFileStatus(absolutePath, fileStatus);
-            status.updateLastModifiedFile(absolutePath);
-            
-            persistenceService.saveStatus(status);
-            
-            // 发送最后一条记录
-            processLatestRecord(file);
-        }
-    }
-    
-    /**
-     * 处理新文件
-     * @param file 新文件
-     */
-    private void processNewFile(File file) {
-        // 计算文件哈希值
-        String fileHash = persistenceService.calculateFileHash(file);
-        
-        // 更新状态
-        status.setFileName(file.getAbsolutePath());
-        status.setFileHash(fileHash);
-        status.setLastProcessedLine(0);
-        persistenceService.saveStatus(status);
-        
-        // 发送最后一条记录
-        processLatestRecord(file);
-    }
-    
-    /**
-     * 处理已存在的文件（继续处理）
-     * @param file 已存在的文件
-     */
-    private void processExistingFile(File file) {
-        // 检查文件是否变化
-        String fileHash = persistenceService.calculateFileHash(file);
-        
-        // 如果文件哈希不一致，说明文件已经变化，需要重新处理
-        if (!fileHash.equals(status.getFileHash())) {
-            logger.info("文件已变化，检查是否有新记录");
-            status.setFileHash(fileHash);
-            
-            // 发送最后一条记录
-            processLatestRecord(file);
-        }
     }
     
     /**
@@ -489,14 +244,25 @@ public class DataTransferService implements FileMonitorService.FileChangeListene
             processRecord(record, file, fileStatus);
         }
         
-        // 更新最后处理的行号
-        fileStatus.setLastProcessedLine(totalLines);
+        // 获取最后一个非空数据行的行号
+        long lastNonEmptyLine = csvParserService.getLastNonEmptyLineNumber(file);
+        
+        // 更新最后处理的行号为最后一个非空数据行的行号
+        // 如果非空行号比当前处理的行号大，才更新
+        if (lastNonEmptyLine > fileStatus.getLastProcessedLine()) {
+            logger.info("更新最后处理行号: {} -> {} (非空数据行)", fileStatus.getLastProcessedLine(), lastNonEmptyLine);
+            fileStatus.setLastProcessedLine(lastNonEmptyLine);
+        } else {
+            // 如果没有找到更大的非空行号，则使用总行数（保持原有逻辑）
+            fileStatus.setLastProcessedLine(totalLines);
+        }
+        
         status.updateFileStatus(absolutePath, fileStatus);
         
         // 保存状态
         persistenceService.saveStatus(status);
         
-        logger.info("文件 {} 处理完成，当前行数: {}", absolutePath, totalLines);
+        logger.info("文件 {} 处理完成，当前行数: {}, 最后非空数据行: {}", absolutePath, totalLines, lastNonEmptyLine);
     }
     
     /**
