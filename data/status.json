@@ -1,0 +1,32 @@
+{
+  "fileHash" : null,
+  "fileName" : "/Users/chenhao/Downloads/中间检测/过程检测/F4J16-EX.csv",
+  "lastProcessedLine" : 15,
+  "totalProcessedLines" : 15,
+  "failedLines" : 0,
+  "lastProcessedTime" : [ 2025, 4, 2, 16, 1, 6, 748000000 ],
+  "fileStatusMap" : {
+    "/Users/chenhao/Downloads/中间检测/过程检测/F4J16-EX.csv" : {
+      "fileHash" : "80d2ac7d155ad59b3c45872799102547",
+      "fileName" : "/Users/chenhao/Downloads/中间检测/过程检测/F4J16-EX.csv",
+      "productModel" : "/Users/chenhao/Downloads/中间检测/过程检测/F4J16-EX",
+      "lastProcessedLine" : 11,
+      "totalProcessedLines" : 20,
+      "failedLines" : 0,
+      "lastProcessedTime" : [ 2025, 4, 2, 16, 1, 6, 748000000 ],
+      "lastModifiedTime" : [ 2025, 4, 2, 16, 1, 6, 713000000 ]
+    },
+    "/Users/chenhao/Downloads/中间检测/过程检测/F4J16-IN.csv" : {
+      "fileHash" : "7dfac471c089dad13666a64f019f2135",
+      "fileName" : "/Users/chenhao/Downloads/中间检测/过程检测/F4J16-IN.csv",
+      "productModel" : "/Users/chenhao/Downloads/中间检测/过程检测/F4J16-IN",
+      "lastProcessedLine" : 118,
+      "totalProcessedLines" : 10,
+      "failedLines" : 0,
+      "lastProcessedTime" : [ 2025, 4, 2, 16, 1, 6, 708000000 ],
+      "lastModifiedTime" : [ 2025, 4, 2, 16, 1, 6, 595000000 ]
+    }
+  },
+  "lastModifiedFileName" : null,
+  "running" : false
+}

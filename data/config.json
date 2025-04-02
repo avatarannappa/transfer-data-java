@@ -1,0 +1,15 @@
+{
+  "apiBaseUrl" : "http://127.0.0.1:8017",
+  "equipmentCode" : "equipmentCode01",
+  "lineCode" : "lineCode02",
+  "csvFilePath" : "/Users/chenhao/Downloads/中间检测/过程检测",
+  "monitorInterval" : 10,
+  "maxRetries" : 3,
+  "retryDelay" : 3,
+  "continueFromLastPosition" : true,
+  "minimizeToTray" : true,
+  "apiType" : "equipment",
+  "monitorAllFiles" : true,
+  "equipmentApiType" : true,
+  "serialApiType" : false
+}
