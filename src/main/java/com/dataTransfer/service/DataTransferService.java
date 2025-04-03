@@ -31,6 +31,29 @@ public class DataTransferService {
     private ScheduledExecutorService scheduler;
     private boolean isInitialized = false;
     
+    // 错误回调接口用于通知UI层
+    private ErrorCallback errorCallback;
+    
+    /**
+     * 错误回调接口，用于通知UI层出现错误
+     */
+    public interface ErrorCallback {
+        /**
+         * 当HTTP请求失败时调用
+         * @param errorMessage 错误消息
+         * @param record 失败的记录
+         */
+        void onHttpRequestFailed(String errorMessage, DetectionRecord record);
+    }
+    
+    /**
+     * 设置错误回调
+     * @param errorCallback 错误回调接口
+     */
+    public void setErrorCallback(ErrorCallback errorCallback) {
+        this.errorCallback = errorCallback;
+    }
+    
     /**
      * 构造方法
      */
@@ -64,7 +87,7 @@ public class DataTransferService {
         }
         
         // 创建定时任务，定期保存状态
-        scheduler = Executors.newScheduledThreadPool(2);
+        scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(() -> {
             try {
                 persistenceService.saveStatus(status);
@@ -98,10 +121,16 @@ public class DataTransferService {
                         
                         // 如果文件哈希值发生变化，表示文件有更新
                         if (fileStatus.getFileHash() == null || !fileStatus.getFileHash().equals(fileHash)) {
+                            if (!status.isRunning()) {
+                                return;
+                            }
                             logger.info("检测到文件变化: {}", absolutePath);
                             // 处理文件中的新记录
-                            processLatestRecord(file);
-                            
+                            boolean allSuccess = processLatestRecord(file);
+                            if (!allSuccess) {
+                                logger.warn("文件处理失败: {}", absolutePath);
+                                continue;
+                            }
                             // 设置新的哈希值
                             fileStatus.setFileHash(fileHash);
                             // 设置文件修改时间
@@ -111,9 +140,6 @@ public class DataTransferService {
                             
                             // 更新状态
                             status.updateFileStatus(absolutePath, fileStatus);
-                            
-                            // 处理文件中的新记录
-                            processLatestRecord(file);
                         }
                     }
                 } catch (Exception e) {
@@ -210,7 +236,7 @@ public class DataTransferService {
      * 处理最新的记录
      * @param file CSV文件
      */
-    private void processLatestRecord(File file) {
+    private boolean processLatestRecord(File file) {
         String absolutePath = file.getAbsolutePath();
         FileStatus fileStatus = status.getFileStatus(absolutePath);
         
@@ -220,7 +246,7 @@ public class DataTransferService {
         // 如果文件行数小于等于上次处理的行数，无需处理
         if (totalLines <= fileStatus.getLastProcessedLine()) {
             logger.debug("文件 {} 没有新增记录，最后处理行: {}, 当前总行数: {}", absolutePath, fileStatus.getLastProcessedLine(), totalLines);
-            return;
+            return true;
         }
         
         // 计算新增的行数
@@ -236,26 +262,28 @@ public class DataTransferService {
         
         if (newRecords.isEmpty()) {
             logger.warn("文件 {} 没有新的有效记录", absolutePath);
-            return;
+            return true;
         }
         
         // 处理所有新增记录
+        boolean hasHttpError = false;
         for (DetectionRecord record : newRecords) {
-            processRecord(record, file, fileStatus);
+            boolean success = processRecord(record, file, fileStatus);
+            if (!success) {
+                hasHttpError = true;
+                break; // HTTP请求失败，停止处理后续记录
+            }
+        }
+
+        if (hasHttpError) {
+            // 没有完全处理
+            return false;
         }
         
         // 获取最后一个非空数据行的行号
         long lastNonEmptyLine = csvParserService.getLastNonEmptyLineNumber(file);
-        
-        // 更新最后处理的行号为最后一个非空数据行的行号
-        // 如果非空行号比当前处理的行号大，才更新
-        if (lastNonEmptyLine > fileStatus.getLastProcessedLine()) {
-            logger.info("更新最后处理行号: {} -> {} (非空数据行)", fileStatus.getLastProcessedLine(), lastNonEmptyLine);
-            fileStatus.setLastProcessedLine(lastNonEmptyLine);
-        } else {
-            // 如果没有找到更大的非空行号，则使用总行数（保持原有逻辑）
-            fileStatus.setLastProcessedLine(totalLines);
-        }
+        fileStatus.setLastProcessedLine(lastNonEmptyLine);
+        fileStatus.setTotalProcessedLines(totalLines);
         
         status.updateFileStatus(absolutePath, fileStatus);
         
@@ -263,6 +291,7 @@ public class DataTransferService {
         persistenceService.saveStatus(status);
         
         logger.info("文件 {} 处理完成，当前行数: {}, 最后非空数据行: {}", absolutePath, totalLines, lastNonEmptyLine);
+        return true;
     }
     
     /**
@@ -270,11 +299,12 @@ public class DataTransferService {
      * @param record 检测记录
      * @param file 源文件
      * @param fileStatus 文件状态
+     * @return 处理是否成功
      */
-    private void processRecord(DetectionRecord record, File file, FileStatus fileStatus) {
+    private boolean processRecord(DetectionRecord record, File file, FileStatus fileStatus) {
         if (record == null) {
             logger.warn("无效的记录，跳过处理");
-            return;
+            return true; // 跳过无效记录，不算失败
         }
         
         // 从文件名中提取产品型号
@@ -282,45 +312,69 @@ public class DataTransferService {
         record.setProductModel(productModel);
         
         String response = null;
+        String apiType = "未知";
         
-        // 根据配置的API类型发送不同的请求
-        if (config.isEquipmentApiType()) {
-            // 发送设备运行时数据
-            EquipmentRuntimeDataRequest runtimeRequest = dataMappingService.mapToEquipmentRuntimeData(
-                    record, config.getEquipmentCode());
-            response = httpClientService.sendPostRequest(
-                    config.getApiBaseUrl() + "/api/DC/SyncEquipmentRuntimeData", runtimeRequest);
-            
-            logger.info("发送设备运行时数据: {}, 产品型号: {}", record.getBarcode(), productModel);
-        } else if (config.isSerialApiType()) {
-            // 发送终检机结果
-            String fileBase64 = dataMappingService.generateFileBase64(record);
-            SerialCodeResultRequest resultRequest = dataMappingService.mapToSerialCodeResult(
-                    record, config.getLineCode(), fileBase64);
-            response = httpClientService.sendPostRequest(
-                    config.getApiBaseUrl() + "/api/UADM/UploadSerialCodeResult", resultRequest);
-            
-            logger.info("发送终检机结果: {}, 产品型号: {}", record.getBarcode(), productModel);
-        } else {
-            logger.warn("未知的API类型: {}", config.getApiType());
+        try {
+            // 根据配置的API类型发送不同的请求
+            if (config.isEquipmentApiType()) {
+                // 发送设备运行时数据
+                apiType = "设备运行时数据";
+                EquipmentRuntimeDataRequest runtimeRequest = dataMappingService.mapToEquipmentRuntimeData(
+                        record, config.getEquipmentCode());
+                response = httpClientService.sendPostRequest(
+                        config.getApiBaseUrl() + "/api/DC/SyncEquipmentRuntimeData", runtimeRequest);
+                
+                logger.info("发送设备运行时数据: {}, 产品型号: {}", record.getBarcode(), productModel);
+            } else if (config.isSerialApiType()) {
+                // 发送终检机结果
+                apiType = "终检机结果";
+                String fileBase64 = dataMappingService.generateFileBase64(record);
+                SerialCodeResultRequest resultRequest = dataMappingService.mapToSerialCodeResult(
+                        record, config.getLineCode(), fileBase64);
+                response = httpClientService.sendPostRequest(
+                        config.getApiBaseUrl() + "/api/UADM/UploadSerialCodeResult", resultRequest);
+                
+                logger.info("发送终检机结果: {}, 产品型号: {}", record.getBarcode(), productModel);
+            } else {
+                logger.warn("未知的API类型: {}", config.getApiType());
+                if (errorCallback != null) {
+                    errorCallback.onHttpRequestFailed("未知的API类型: " + config.getApiType(), record);
+                }
+                return false;
+            }
+        } catch (Exception e) {
+            logger.error("发送请求时发生异常: " + e.getMessage(), e);
+            if (errorCallback != null) {
+                errorCallback.onHttpRequestFailed("发送请求时发生异常: " + e.getMessage(), record);
+            }
+            return false;
         }
-        
-        // 更新文件状态
-        fileStatus.incrementProcessedLine();
-        fileStatus.setLastProcessedTime(LocalDateTime.now());
         
         if (response == null) {
             fileStatus.incrementFailedLine();
+            
+            // 通知UI层HTTP请求失败
+            String errorMsg = "发送" + apiType + "失败，条码: " + record.getBarcode() + 
+                              "，产品型号: " + productModel + 
+                              "，请检查网络连接和API服务器状态";
+            logger.error(errorMsg);
+            
+            if (errorCallback != null) {
+                errorCallback.onHttpRequestFailed(errorMsg, record);
+            }
+            
+            return false;
         }
         
+        // 更新文件状态
+        // fileStatus.incrementProcessedLine();
+        // fileStatus.setLastProcessedTime(LocalDateTime.now());
         // 更新全局统计
         status.incrementProcessedLine();
-        if (response == null) {
-            status.incrementFailedLine();
-        }
         
-        logger.debug("处理记录: {} ({}), 产品型号: {}, 结果: {}", 
-                record.getBarcode(), record.getResult(), productModel, 
-                response != null ? "成功" : "失败");
+        logger.debug("处理记录: {} ({}), 产品型号: {}, 结果: 成功", 
+                record.getBarcode(), record.getResult(), productModel);
+        
+        return true;
     }
 } 

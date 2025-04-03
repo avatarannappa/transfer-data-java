@@ -24,6 +24,11 @@ public class FileMonitorService {
      * @return CSV文件数组
      */
     public File[] getAllCsvFiles() {
+        // 如果路径为空或为null，返回空数组
+        if (directoryPath == null || directoryPath.trim().isEmpty()) {
+            logger.warn("CSV文件路径为空或未设置", directoryPath);
+            return new File[0];
+        }
         File directory = new File(directoryPath);
         if (!directory.exists() || !directory.isDirectory()) {
             return new File[0];

@@ -1,6 +1,7 @@
 package com.dataTransfer.ui;
 
 import com.dataTransfer.model.Config;
+import com.dataTransfer.model.DetectionRecord;
 import com.dataTransfer.model.FileStatus;
 import com.dataTransfer.model.TransferStatus;
 import com.dataTransfer.service.DataTransferService;
@@ -22,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 主界面
  */
-public class MainFrame extends JFrame {
+public class MainFrame extends JFrame implements DataTransferService.ErrorCallback {
     private static final Logger logger = LoggerFactory.getLogger(MainFrame.class);
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     
@@ -82,6 +83,9 @@ public class MainFrame extends JFrame {
         
         // 加载配置
         loadConfig();
+        
+        // 注册错误回调
+        dataTransferService.setErrorCallback(this);
         
         // 创建托盘管理器
         this.trayManager = new TrayManager(this, this::exitApplication);
@@ -218,79 +222,6 @@ public class MainFrame extends JFrame {
         equipmentApiRadio = new JRadioButton("中间数据");
         serialApiRadio = new JRadioButton("结果数据");
         
-        // 为单选按钮添加确认对话框
-        equipmentApiRadio.addItemListener(e -> {
-            // 只有在用户交互时（非加载配置时）才显示确认对话框
-            if (equipmentApiRadio.isSelected() && !isLoadingConfig) {
-                // 记住之前的选择状态
-                boolean wasSerialSelected = serialApiRadio.isSelected();
-                
-                // 显示确认对话框
-                int result = JOptionPane.showConfirmDialog(
-                    MainFrame.this,
-                    "确定要选择「中间数据」API类型吗？",
-                    "确认选择",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE
-                );
-                
-                // 如果用户取消，则恢复之前的选择
-                if (result != JOptionPane.YES_OPTION) {
-                    // 将ButtonGroup设置为null，以便可以取消所有选择
-                    ButtonGroup bg = new ButtonGroup();
-                    bg.add(equipmentApiRadio);
-                    bg.add(serialApiRadio);
-                    
-                    // 恢复之前的状态
-                    if (wasSerialSelected) {
-                        serialApiRadio.setSelected(true);
-                    } else {
-                        equipmentApiRadio.setSelected(false);
-                    }
-                    
-                    // 恢复原来的ButtonGroup
-                    apiTypeGroup.add(equipmentApiRadio);
-                    apiTypeGroup.add(serialApiRadio);
-                }
-            }
-        });
-        
-        serialApiRadio.addItemListener(e -> {
-            // 只有在用户交互时（非加载配置时）才显示确认对话框
-            if (serialApiRadio.isSelected() && !isLoadingConfig) {
-                // 记住之前的选择状态
-                boolean wasEquipmentSelected = equipmentApiRadio.isSelected();
-                
-                // 显示确认对话框
-                int result = JOptionPane.showConfirmDialog(
-                    MainFrame.this,
-                    "确定要选择「结果数据」API类型吗？",
-                    "确认选择",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE
-                );
-                
-                // 如果用户取消，则恢复之前的选择
-                if (result != JOptionPane.YES_OPTION) {
-                    // 将ButtonGroup设置为null，以便可以取消所有选择
-                    ButtonGroup bg = new ButtonGroup();
-                    bg.add(equipmentApiRadio);
-                    bg.add(serialApiRadio);
-                    
-                    // 恢复之前的状态
-                    if (wasEquipmentSelected) {
-                        equipmentApiRadio.setSelected(true);
-                    } else {
-                        serialApiRadio.setSelected(false);
-                    }
-                    
-                    // 恢复原来的ButtonGroup
-                    apiTypeGroup.add(equipmentApiRadio);
-                    apiTypeGroup.add(serialApiRadio);
-                }
-            }
-        });
-        
         apiTypeGroup.add(equipmentApiRadio);
         apiTypeGroup.add(serialApiRadio);
         
@@ -340,85 +271,16 @@ public class MainFrame extends JFrame {
         gbc.gridy = 8;
         gbc.gridwidth = 2;
         continueFromLastCheckBox = new JCheckBox("从上次位置继续");
-        
-        // 为复选框添加确认对话框
-        continueFromLastCheckBox.addItemListener(e -> {
-            // 只有在用户交互时（非加载配置时）才显示确认对话框
-            if (!isLoadingConfig) {
-                boolean isSelected = continueFromLastCheckBox.isSelected();
-                
-                // 显示确认对话框
-                int result = JOptionPane.showConfirmDialog(
-                    MainFrame.this,
-                    "确定要" + (isSelected ? "启用" : "禁用") + "「从上次位置继续」选项吗？",
-                    "确认选择",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE
-                );
-                
-                // 如果用户取消，则恢复之前的状态
-                if (result != JOptionPane.YES_OPTION) {
-                    continueFromLastCheckBox.setSelected(!isSelected);
-                }
-            }
-        });
-        
         configPanel.add(continueFromLastCheckBox, gbc);
         
         gbc.gridx = 0;
         gbc.gridy = 9;
         minimizeToTrayCheckBox = new JCheckBox("最小化到系统托盘");
-        
-        // 为复选框添加确认对话框
-        minimizeToTrayCheckBox.addItemListener(e -> {
-            // 只有在用户交互时（非加载配置时）才显示确认对话框
-            if (!isLoadingConfig) {
-                boolean isSelected = minimizeToTrayCheckBox.isSelected();
-                
-                // 显示确认对话框
-                int result = JOptionPane.showConfirmDialog(
-                    MainFrame.this,
-                    "确定要" + (isSelected ? "启用" : "禁用") + "「最小化到系统托盘」选项吗？",
-                    "确认选择",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE
-                );
-                
-                // 如果用户取消，则恢复之前的状态
-                if (result != JOptionPane.YES_OPTION) {
-                    minimizeToTrayCheckBox.setSelected(!isSelected);
-                }
-            }
-        });
-        
         configPanel.add(minimizeToTrayCheckBox, gbc);
         
         gbc.gridx = 0;
         gbc.gridy = 10;
         monitorAllFilesCheckBox = new JCheckBox("监控全部文件");
-        
-        // 为复选框添加确认对话框
-        monitorAllFilesCheckBox.addItemListener(e -> {
-            // 只有在用户交互时（非加载配置时）才显示确认对话框
-            if (!isLoadingConfig) {
-                boolean isSelected = monitorAllFilesCheckBox.isSelected();
-                
-                // 显示确认对话框
-                int result = JOptionPane.showConfirmDialog(
-                    MainFrame.this,
-                    "确定要" + (isSelected ? "启用" : "禁用") + "「监控全部文件」选项吗？",
-                    "确认选择",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE
-                );
-                
-                // 如果用户取消，则恢复之前的状态
-                if (result != JOptionPane.YES_OPTION) {
-                    monitorAllFilesCheckBox.setSelected(!isSelected);
-                }
-            }
-        });
-        
         configPanel.add(monitorAllFilesCheckBox, gbc);
         
         return configPanel;
@@ -973,5 +835,36 @@ public class MainFrame extends JFrame {
         
         logger.info("应用程序已退出");
         System.exit(0);
+    }
+
+    /**
+     * HTTP请求失败时的回调方法
+     * @param errorMessage 错误消息
+     * @param record 失败的记录
+     */
+    @Override
+    public void onHttpRequestFailed(String errorMessage, DetectionRecord record) {
+        // 使用SwingUtilities.invokeLater确保在EDT线程中执行UI操作
+        SwingUtilities.invokeLater(() -> {
+            // 更新状态UI
+            updateStatusUI();
+            
+            // 自动停止服务
+            if (dataTransferService.getStatus().isRunning()) {
+                stopService();
+            }
+            
+            // 显示错误对话框
+            JOptionPane.showMessageDialog(
+                this,
+                String.format("HTTP请求失败：\n%s\n\n条码：%s\n产品型号：%s\n\n后续处理已停止，请检查网络和服务器状态后再继续。",
+                              errorMessage,
+                              record.getBarcode(),
+                              record.getProductModel()),
+                "HTTP请求失败",
+                JOptionPane.ERROR_MESSAGE
+            );
+            
+        });
     }
 }
