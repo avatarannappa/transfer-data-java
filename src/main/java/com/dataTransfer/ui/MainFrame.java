@@ -42,9 +42,7 @@ public class MainFrame extends JFrame implements DataTransferService.ErrorCallba
     private JSpinner monitorIntervalSpinner;
     private JSpinner maxRetriesSpinner;
     private JSpinner retryDelaySpinner;
-    private JCheckBox continueFromLastCheckBox;
     private JCheckBox minimizeToTrayCheckBox;
-    private JCheckBox monitorAllFilesCheckBox;
     private JRadioButton equipmentApiRadio;
     private JRadioButton serialApiRadio;
     private ButtonGroup apiTypeGroup;
@@ -270,18 +268,8 @@ public class MainFrame extends JFrame implements DataTransferService.ErrorCallba
         gbc.gridx = 0;
         gbc.gridy = 8;
         gbc.gridwidth = 2;
-        continueFromLastCheckBox = new JCheckBox("从上次位置继续");
-        configPanel.add(continueFromLastCheckBox, gbc);
-        
-        gbc.gridx = 0;
-        gbc.gridy = 9;
         minimizeToTrayCheckBox = new JCheckBox("最小化到系统托盘");
         configPanel.add(minimizeToTrayCheckBox, gbc);
-        
-        gbc.gridx = 0;
-        gbc.gridy = 10;
-        monitorAllFilesCheckBox = new JCheckBox("监控全部文件");
-        configPanel.add(monitorAllFilesCheckBox, gbc);
         
         return configPanel;
     }
@@ -665,9 +653,7 @@ public class MainFrame extends JFrame implements DataTransferService.ErrorCallba
         monitorIntervalSpinner.setValue(config.getMonitorInterval());
         maxRetriesSpinner.setValue(config.getMaxRetries());
         retryDelaySpinner.setValue(config.getRetryDelay());
-        continueFromLastCheckBox.setSelected(config.isContinueFromLastPosition());
         minimizeToTrayCheckBox.setSelected(config.isMinimizeToTray());
-        monitorAllFilesCheckBox.setSelected(config.isMonitorAllFiles());
         
         // 设置API类型单选按钮
         if (config.isEquipmentApiType()) {
@@ -735,9 +721,11 @@ public class MainFrame extends JFrame implements DataTransferService.ErrorCallba
         config.setMonitorInterval((int) monitorIntervalSpinner.getValue());
         config.setMaxRetries((int) maxRetriesSpinner.getValue());
         config.setRetryDelay((int) retryDelaySpinner.getValue());
-        config.setContinueFromLastPosition(continueFromLastCheckBox.isSelected());
         config.setMinimizeToTray(minimizeToTrayCheckBox.isSelected());
-        config.setMonitorAllFiles(monitorAllFilesCheckBox.isSelected());
+        
+        // 设置默认值：从上次位置继续和监控全部文件
+        config.setContinueFromLastPosition(true); // 默认值
+        config.setMonitorAllFiles(true); // 默认值
         
         // 保存API类型
         if (equipmentApiRadio.isSelected()) {
