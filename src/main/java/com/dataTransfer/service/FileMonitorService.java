@@ -18,6 +18,9 @@ public class FileMonitorService {
         this.directoryPath = directoryPath;
     }
     
+    public void setDirectoryPath(String directoryPath) {
+        this.directoryPath = directoryPath;
+    }
     
     /**
      * 获取目录中所有的CSV文件

@@ -105,6 +105,8 @@ public class DataTransferService {
                     }
                     
                     logger.debug("定期检查文件变化...");
+                    // 支持启动后改目录
+                    fileMonitorService.setDirectoryPath(config.getCsvFilePath());
                     // 获取目录中所有的CSV文件
                     File[] allFiles = fileMonitorService.getAllCsvFiles();
                     if (allFiles == null || allFiles.length == 0) {

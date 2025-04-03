@@ -599,7 +599,7 @@ public class MainFrame extends JFrame implements DataTransferService.ErrorCallba
      */
     private void startService() {
         // 先保存配置
-        // saveConfig();
+        saveConfig();
         
         // 启动服务
         dataTransferService.start();
