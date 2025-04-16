@@ -45,7 +45,7 @@ public class CsvParserService {
      * @param maxRecords 最大记录数量，-1表示不限制
      * @return 检测记录列表
      */
-    public List<DetectionRecord> parseFile(File file, long startLine, int maxRecords) {
+    public List<DetectionRecord> parseFile(File file, long startLine, long maxRecords) {
         List<DetectionRecord> records = new ArrayList<>();
         
         try (CSVReader reader = new CSVReader(new InputStreamReader(new FileInputStream(file), ISO_8859_1))) {

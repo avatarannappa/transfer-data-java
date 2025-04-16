@@ -260,7 +260,7 @@ public class DataTransferService {
         
         // 从上次处理的行开始解析新增的记录
         // 注意：如果文件很大，可能需要批量处理
-        List<DetectionRecord> newRecords = csvParserService.parseFile(file, fileStatus.getLastProcessedLine(), (int)Math.min(newLines, 100));
+        List<DetectionRecord> newRecords = csvParserService.parseFile(file, fileStatus.getLastProcessedLine(), newLines);
         
         if (newRecords.isEmpty()) {
             logger.warn("文件 {} 没有新的有效记录", absolutePath);
