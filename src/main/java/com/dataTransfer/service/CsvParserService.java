@@ -83,32 +83,16 @@ public class CsvParserService {
     }
     
     /**
-     * 获取CSV文件的总行数
-     * @param file CSV文件
-     * @return 总行数
-     */
-    public long getLineCount(File file) {
-        long lineCount = 0;
-        
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), ISO_8859_1))) {
-            while (reader.readLine() != null) {
-                lineCount++;
-            }
-        } catch (IOException e) {
-            logger.error("读取CSV文件失败: " + e.getMessage(), e);
-        }
-        
-        return lineCount;
-    }
-    
-    /**
      * 获取CSV文件中最后一个非空数据行的行号
      * @param file CSV文件
-     * @return 最后一个非空数据行的行号，如果没有非空行则返回0
+     * @return [最后一个非空数据行的行号，总行号]
      */
-    public long getLastNonEmptyLineNumber(File file) {
+    public long[] getLineCount(File file) {
         long lastNonEmptyLine = 0;
         long currentLine = 0;
+        long[] result = new long[2];
+        result[0] = lastNonEmptyLine;
+        result[1] = currentLine;
         
         try (CSVReader reader = new CSVReader(new InputStreamReader(new FileInputStream(file), ISO_8859_1))) {
             String[] headerLine = reader.readNext(); // 读取表头
@@ -116,7 +100,7 @@ public class CsvParserService {
             
             if (headerLine == null) {
                 logger.error("CSV文件为空或格式错误");
-                return lastNonEmptyLine;
+                return result;
             }
             
             String[] nextLine;
@@ -133,7 +117,9 @@ public class CsvParserService {
             logger.error("解析CSV文件失败: " + e.getMessage(), e);
         }
         
-        return lastNonEmptyLine;
+        result[0] = lastNonEmptyLine;
+        result[1] = currentLine;
+        return result;
     }
     
     /**

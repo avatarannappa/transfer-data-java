@@ -243,16 +243,16 @@ public class DataTransferService {
         FileStatus fileStatus = status.getFileStatus(absolutePath);
         
         // 获取文件的总行数
-        long totalLines = csvParserService.getLineCount(file);
+        long[] totalLines = csvParserService.getLineCount(file);
         
         // 如果文件行数小于等于上次处理的行数，无需处理
-        if (totalLines <= fileStatus.getLastProcessedLine()) {
+        if (totalLines[0] <= fileStatus.getLastProcessedLine()) {
             logger.debug("文件 {} 没有新增记录，最后处理行: {}, 当前总行数: {}", absolutePath, fileStatus.getLastProcessedLine(), totalLines);
             return true;
         }
         
         // 计算新增的行数
-        long newLines = totalLines - fileStatus.getLastProcessedLine();
+        long newLines = totalLines[0] - fileStatus.getLastProcessedLine();
         logger.info("文件 {} 有 {} 行新内容需要处理", absolutePath, newLines);
         
         // 设置当前处理的文件名（用于UI显示和状态跟踪）
@@ -283,16 +283,19 @@ public class DataTransferService {
         }
         
         // 获取最后一个非空数据行的行号
-        long lastNonEmptyLine = csvParserService.getLastNonEmptyLineNumber(file);
-        fileStatus.setLastProcessedLine(lastNonEmptyLine);
-        fileStatus.setTotalProcessedLines(totalLines);
+        fileStatus.setLastProcessedLine(totalLines[0]);
+        fileStatus.setTotalProcessedLines(totalLines[1]);
+        
+        // 更新全局状态
+        status.setLastProcessedLine(totalLines[0]);
+        status.setTotalProcessedLines(totalLines[1]);
         
         status.updateFileStatus(absolutePath, fileStatus);
         
         // 保存状态
         persistenceService.saveStatus(status);
         
-        logger.info("文件 {} 处理完成，当前行数: {}, 最后非空数据行: {}", absolutePath, totalLines, lastNonEmptyLine);
+        logger.info("文件 {} 处理完成，当前行数: {}, 最后非空数据行: {}", absolutePath, totalLines[1], totalLines[0]);
         return true;
     }
     
