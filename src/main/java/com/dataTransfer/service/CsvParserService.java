@@ -149,8 +149,7 @@ public class CsvParserService {
         record.setDate(convertToUnicode(data[1]));
         
         // 判定结果在倒数第二列
-        int resultIndex = Math.max(0, data.length - 2);
-        record.setResult(convertToUnicode(data[resultIndex]));
+        record.setResult(convertToUnicode(data[panDingIndex]));
         if (!"NG".equals(record.getResult()) && !"OK".equals(record.getResult())) {
             logger.error("error result:", record.getResult());
         }
