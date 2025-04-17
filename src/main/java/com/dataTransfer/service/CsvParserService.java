@@ -54,6 +54,13 @@ public class CsvParserService {
                 logger.error("CSV文件为空或格式错误");
                 return records;
             }
+
+            int panDingColumn = 0;
+            for (panDingColumn = 0; panDingColumn < headerLine.length; panDingColumn++) {
+                if ("判定".equals(convertToUnicode(headerLine[panDingColumn]))) {
+                    break;
+                }
+            }
             
             String[] nextLine;
             long currentLine = 1; // 已经读取了表头，从1开始
@@ -67,7 +74,7 @@ public class CsvParserService {
             int recordCount = 0;
             while ((maxRecords == -1 || recordCount < maxRecords) && (nextLine = reader.readNext()) != null) {
                 if (nextLine.length > 0 && !isEmpty(nextLine)) {
-                    DetectionRecord record = parseDataLine(headerLine, nextLine);
+                    DetectionRecord record = parseDataLine(headerLine, nextLine, panDingColumn);
                     if (record != null) {
                         records.add(record);
                         recordCount++;
@@ -128,11 +135,12 @@ public class CsvParserService {
      * @param data 数据数组
      * @return 检测记录对象
      */
-    private DetectionRecord parseDataLine(String[] header, String[] data) {
+    private DetectionRecord parseDataLine(String[] header, String[] data, int panDingIndex) {
         if (data.length < 3) {
             logger.warn("数据行格式错误，列数不足");
             return null;
         }
+        
         
         DetectionRecord record = new DetectionRecord();
         
@@ -143,6 +151,9 @@ public class CsvParserService {
         // 判定结果在倒数第二列
         int resultIndex = Math.max(0, data.length - 2);
         record.setResult(convertToUnicode(data[resultIndex]));
+        if (!"NG".equals(record.getResult()) && !"OK".equals(record.getResult())) {
+            logger.error("error result:", record.getResult());
+        }
         
         // 遍历所有其他列，包括倒数第二列，添加到测量数据中
         for (int i = 2; i < data.length - 1; i++) {
