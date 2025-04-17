@@ -32,7 +32,11 @@ public class CsvParserService {
             // 先将字符串转换为ISO-8859-1编码的字节数组
             byte[] bytes = isoString.getBytes(ISO_8859_1);
             // 使用GBK解码（因为CSV文件可能是用GBK编码保存的）
-            return new String(bytes, "GBK");
+            String str = new String(bytes, "GBK");
+            if (str.startsWith("◆")) {
+                str = str.substring(1);
+            }
+            return str;
         } catch (UnsupportedEncodingException e) {
             logger.error("编码转换失败: " + e.getMessage(), e);
             return isoString;
