@@ -45,32 +45,32 @@ public class EquipmentRuntimeDataRequest {
      * 点位数据内部类
      */
     public static class Point {
-        private String pointName;
-        private String pointValue;
+        private String code;
+        private String text;
         
         public Point() {
         }
         
-        public Point(String pointName, String pointValue) {
-            this.pointName = pointName;
-            this.pointValue = pointValue;
+        public Point(String code, String text) {
+            this.code = code;
+            this.text = text;
         }
         
         // Getters and Setters
-        public String getPointName() {
-            return pointName;
+        public String getCode() {
+            return code;
         }
         
-        public void setPointName(String pointName) {
-            this.pointName = pointName;
+        public void setCode(String code) {
+            this.code = code;
         }
         
-        public String getPointValue() {
-            return pointValue;
+        public String getText() {
+            return text;
         }
         
-        public void setPointValue(String pointValue) {
-            this.pointValue = pointValue;
+        public void setText(String text) {
+            this.text = text;
         }
     }
 } 
