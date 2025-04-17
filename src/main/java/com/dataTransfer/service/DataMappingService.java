@@ -22,6 +22,7 @@ public class DataMappingService {
      */
     public EquipmentRuntimeDataRequest mapToEquipmentRuntimeData(DetectionRecord record, String equipmentCode) {
         EquipmentRuntimeDataRequest request = new EquipmentRuntimeDataRequest();
+        request.setId(record.getId());
         request.setEquipmentCode(equipmentCode);
         
         // 添加所有测量数据点位

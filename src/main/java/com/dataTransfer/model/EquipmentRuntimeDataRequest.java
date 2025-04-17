@@ -8,11 +8,20 @@ import java.util.List;
  * 对应 /api/DC/SyncEquipmentRuntimeData 接口
  */
 public class EquipmentRuntimeDataRequest {
+    private String id;
     private String equipmentCode;
     private List<Point> points;
     
     public EquipmentRuntimeDataRequest() {
         this.points = new ArrayList<>();
+    }
+    
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
     
     public EquipmentRuntimeDataRequest(String equipmentCode) {

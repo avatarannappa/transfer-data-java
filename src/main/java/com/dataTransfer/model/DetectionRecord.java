@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
  * 检测记录类，表示CSV文件中的一行数据
  */
 public class DetectionRecord {
+    private String id;
     private String barcode; // 二维码
     private String date; // 日期
     private String result; // 判定结果
@@ -16,6 +17,14 @@ public class DetectionRecord {
         this.measurements = new LinkedHashMap<>();
     }
     
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
     // Getters and Setters
     public String getBarcode() {
         return barcode;
@@ -61,18 +70,11 @@ public class DetectionRecord {
         this.measurements.put(name, value);
     }
     
-    /**
-     * 生成该记录的唯一标识
-     * @return UUID字符串
-     */
-    public String generateUUID() {
-        return barcode + "_" + date; // 使用二维码和日期组合作为唯一标识
-    }
-    
     @Override
     public String toString() {
         return "DetectionRecord{" +
-                "barcode='" + barcode + '\'' +
+                "id ='" + id + '\'' +
+                ", barcode='" + barcode + '\'' +
                 ", date='" + date + '\'' +
                 ", result='" + result + '\'' +
                 ", productModel='" + productModel + '\'' +

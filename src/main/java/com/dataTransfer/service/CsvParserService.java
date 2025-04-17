@@ -10,6 +10,7 @@ import java.io.*;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * CSV文件解析服务类
@@ -74,7 +75,7 @@ public class CsvParserService {
             int recordCount = 0;
             while ((maxRecords == -1 || recordCount < maxRecords) && (nextLine = reader.readNext()) != null) {
                 if (nextLine.length > 0 && !isEmpty(nextLine)) {
-                    DetectionRecord record = parseDataLine(headerLine, nextLine, panDingColumn);
+                    DetectionRecord record = parseDataLine(headerLine, nextLine, panDingColumn, currentLine);
                     if (record != null) {
                         records.add(record);
                         recordCount++;
@@ -133,9 +134,11 @@ public class CsvParserService {
      * 解析数据行，生成检测记录对象
      * @param header 表头数组
      * @param data 数据数组
+     * @param panDingIndex “判定”列的index
+     * @param rowId 列id
      * @return 检测记录对象
      */
-    private DetectionRecord parseDataLine(String[] header, String[] data, int panDingIndex) {
+    private DetectionRecord parseDataLine(String[] header, String[] data, int panDingIndex, long rowId) {
         if (data.length < 3) {
             logger.warn("数据行格式错误，列数不足");
             return null;
@@ -145,6 +148,7 @@ public class CsvParserService {
         DetectionRecord record = new DetectionRecord();
         
         // 设置基本字段（假设第一列是二维码，第二列是日期，倒数第二列是判定）
+        record.setId(UUID.randomUUID().toString());
         record.setBarcode(convertToUnicode(data[0]));
         record.setDate(convertToUnicode(data[1]));
         
